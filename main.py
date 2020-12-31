@@ -1,4 +1,18 @@
+import pygame as pg
+from os import path
+
+
+pg.init()
+
 HOTKEYS = {}
+
+pg.display.set_caption("Tetris")
+pg.display.set_icon(pg.image.load(path.join("Resources", "Images", "tetris.png")))  # path.abspath("tetris.png")
+screen = pg.display.set_mode((0, 0), flags=pg.FULLSCREEN | pg.HWSURFACE | pg.DOUBLEBUF)
+W, H = pg.display.get_window_size()
+
+FPS = 60
+clock = pg.time.Clock()
 
 
 class Settings:
@@ -43,3 +57,16 @@ class Round:
     pass
 
 
+# Цикл, для тестировки работоспособности программы. Позже, будет удалён.
+running = True
+while running:
+    screen.fill(pg.Color('magenta'))
+
+    for i in pg.event.get():
+        if i.type == pg.QUIT:
+            running = False
+
+    pg.display.flip()
+    clock.tick(FPS)
+
+pg.quit()
