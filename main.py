@@ -151,12 +151,6 @@ class Menu(List):
             pg.display.flip()  # Обновляю монитор.
 
 
-class RecordsList(List):
-    """Последние 5 рекордов будут храниться в кеше. Этот класс должен их выводить
-    Вторичный цикл"""
-    pass
-
-
 class GameOverMenu(Menu):
     """Поздравление с новым рекордом, кнопка играть еще, кнопка выхода в главное меню.
     Третичный цикл, нужен флаг menu, для правильного выхода в меню"""
@@ -196,6 +190,16 @@ assistance_items = (
 )
 assistance = Menu(assistance_sentences, assistance_items)
 
+# Создаю сцену рекордов.
+# TODO Создать файл, в котором будут храниться последние 5 рекордов. Помещать их в records_sentences.
+records_sentences = (
+    ("В разработке", W // 2, H // 2, font1, (0, 0, 0)),
+)
+records_items = (
+    ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0), 0, 'return'),
+)
+records = Menu(records_sentences, records_items)
+
 # Создаю сцену игрового меню.
 main_menu_sentences = (
     ("Тетрис", W // 2 - 155, 0, font3, (255, 0, 0)),
@@ -204,7 +208,7 @@ main_menu_sentences = (
 main_menu_items = (
     ("Играть", W // 2 - 80, 100, font2, (0, 0, 0), (255, 0, 0), 0, print),
     ("Помощь", W // 2 - 80, 180, font2, (0, 0, 0), (255, 0, 0), 1, assistance.main),
-    ("Рекорды", W // 2 - 80, 260, font2, (0, 0, 0), (255, 0, 0), 2, print),
+    ("Рекорды", W // 2 - 80, 260, font2, (0, 0, 0), (255, 0, 0), 2, records.main),
     ("Выйти", W // 2 - 80, 340, font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 )
 main_menu = Menu(main_menu_sentences, main_menu_items)
