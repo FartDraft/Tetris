@@ -181,14 +181,14 @@ main_menu_font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
 main_menu_font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
 main_menu_font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
 main_menu_sentences = (
-    ("Тетрис", W // 2 - 155, 0, main_menu_font3, (148, 0, 211)),
+    ("Тетрис", W // 2 - 155, 0, main_menu_font3, (255, 0, 0)),
     ("Автор: Афанасин Егор", 100, H - 100, main_menu_font1, (54, 54, 54)),
 )
 main_menu_items = ( # print заменится на функции
-    ("Играть", W // 2 - 80, 100, main_menu_font2, (69, 139, 116), (255, 0, 0), 0, print),
-    ("Помощь", W // 2 - 80, 180, main_menu_font2, (69, 139, 116), (255, 0, 0), 1, print),
-    ("Рекорды", W // 2 - 80, 260, main_menu_font2, (69, 139, 116), (255, 0, 0), 2, print),
-    ("Выйти", W // 2 - 80, 340, main_menu_font2, (69, 139, 116), (255, 0, 0), 3, sys.exit),
+    ("Играть", W // 2 - 80, 100, main_menu_font2, (0, 0, 0), (255, 0, 0), 0, print),
+    ("Помощь", W // 2 - 80, 180, main_menu_font2, (0, 0, 0), (255, 0, 0), 1, print),
+    ("Рекорды", W // 2 - 80, 260, main_menu_font2, (0, 0, 0), (255, 0, 0), 2, print),
+    ("Выйти", W // 2 - 80, 340, main_menu_font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 
 )
 main_menu = Menu(background, main_menu_sentences, main_menu_items)
