@@ -137,12 +137,6 @@ class Menu(List):
             pg.display.flip()
 
 
-class MainMenu(Menu):
-    """Стартовое меню с настройками, выходом, рекордами, кнопкой играть.
-    Первичный цикл"""
-    pass
-
-
 class SettingsList(List):
     """
     Здесь будут хоткеи, описание раундов, правила начисления очков.
@@ -179,17 +173,24 @@ class Round:
     pass
 
 
-# Тест работы.
-menu_font = pg.font.Font(path.join("Resources", "Fonts", "Coder_4F_Bold.ttf"), 50)
-sentences = (
-    ("Author:", W // 2, 525, menu_font, pg.Color("green")),
-    ("Afanasin Egor", W // 2, 600, menu_font, pg.Color("green"))
-)
-items = (
-    ("Выйти", W // 2, 300, menu_font, (0, 0, 0), pg.Color("yellow"), 0, sys.exit),
-    ("Quit", W // 2, 400, menu_font, (0, 0, 0), pg.Color("yellow"), 1, sys.exit)  # 0 - TypeError
-)
-test = pg.image.load(path.join("Resources", "Images", "menu.jpg")).convert()
-menu = Menu(test, sentences, items)
+# Создаю фон для всей игры, учитывая разрешени экрана.
+background = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
 
-menu.main()
+# Создаю игровое меню
+main_menu_font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
+main_menu_font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
+main_menu_font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
+main_menu_sentences = (
+    ("Тетрис", W // 2 - 155, 0, main_menu_font3, (148, 0, 211)),
+    ("Автор: Афанасин Егор", 100, H - 100, main_menu_font1, (54, 54, 54)),
+)
+main_menu_items = ( # print заменится на функции
+    ("Играть", W // 2 - 80, 100, main_menu_font2, (69, 139, 116), (255, 0, 0), 0, print),
+    ("Помощь", W // 2 - 80, 180, main_menu_font2, (69, 139, 116), (255, 0, 0), 1, print),
+    ("Рекорды", W // 2 - 80, 260, main_menu_font2, (69, 139, 116), (255, 0, 0), 2, print),
+    ("Выйти", W // 2 - 80, 340, main_menu_font2, (69, 139, 116), (255, 0, 0), 3, sys.exit),
+
+)
+main_menu = Menu(background, main_menu_sentences, main_menu_items)
+
+main_menu.main()
