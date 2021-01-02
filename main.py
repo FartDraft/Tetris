@@ -34,7 +34,6 @@ class List:
             Должны быть больше 1 предложения.
 
         Атрибуты:
-            surface: pygame.Surface: поверхность, на которой будут отрисованы предложения.
             sentences: tuple(tuple):
             {
                 sentences[n][0]: str: предложение.
@@ -47,17 +46,16 @@ class List:
         Методы:
             render_sentences(): Отрисовывает предложения на поверхности surface, используя self.sentences.
     """
-    def __init__(self, surface, sentences: tuple):
-        self.surface = surface
+    def __init__(self, sentences: tuple):
         self.sentences = sentences
 
     def render_sentences(self) -> None:
         for name, x, y, font, color in self.sentences:
-            self.surface.blit(font.render(name, True, color), (x, y))
+            screen.blit(font.render(name, True, color), (x, y))
 
 
 class Menu(List):
-    """Класс Menu используется для графического отображения пунктов меню.
+    """Класс Menu используется для графического отображения меню.
 
         Основое применение:
            Является родительским классом для: MainMenu, GameOverMenu, PauseMenu.
@@ -66,7 +64,6 @@ class Menu(List):
             Должно быть больше 1 предложения и больше 1 пункта.
 
         Атрибуты:
-            surface: pygame.Surface: поверхность, на которой будут отрисованы предложения и пункты.
             sentences: tuple(tuple):
             {
                 sentences[n][0]: str: предложение.
@@ -89,52 +86,63 @@ class Menu(List):
 
         Методы:
             render(active_item_num: int: номер активного пункта меню на данный момент времени):
-                Отрисовывает пункты и предложения на поверхности surface, используя self.sentences и self.items.
+                Отрисовывает пункты и предложения, используя self.sentences и self.items.
+
+            main(surface: pygame.Surface: поверхность, которая будет отрисована на экране screen):
+                Входит в цикл, который создаёт меню, используя surface, self.sentences и self.items.
+                    Единственный способ выйти из цикла - нажать ALT+F4.
     """
 
-    def __init__(self, surface, sentences: tuple, items: tuple):
-        super(Menu, self).__init__(surface, sentences)
-        self.surface = surface
+    def __init__(self, sentences: tuple, items: tuple):
+        super(Menu, self).__init__(sentences)
         self.items = items
+        # Получаю размеры, необходимые для отображения каждого пункта своим шрифтом.
+        self.fonts_sizes = tuple(item[3].size(item[0]) for item in items)
 
     def render(self, active_item_num: int) -> None:
         # Отрисовываю пункты.
-        for name, x, y, font, unselect_color, select_color, item_num, _ in self.items:
-            if active_item_num == item_num:
-                self.surface.blit(font.render(name, True, select_color), (x, y))
-            else:
-                self.surface.blit(font.render(name, True, unselect_color), (x, y))
+        if active_item_num is not None:
+            for name, x, y, font, unselect_color, select_color, item_num, _ in self.items:
+                if active_item_num == item_num:
+                    screen.blit(font.render(name, True, select_color), (x, y))
+                else:
+                    screen.blit(font.render(name, True, unselect_color), (x, y))
+        else:
+            for name, x, y, font, unselect_color, _, item_num, _ in self.items:
+                screen.blit(font.render(name, True, unselect_color), (x, y))
         # Отрисовываю предложения.
         self.render_sentences()
 
-    def main(self):
-        active_item_num = 0
-        max_item_index = len(self.items) - 1
+    def main(self, surface):
+        active_item_num = None  # При запуске номер активного пункта не определён.
         while True:
             mouse_x, mouse_y = pg.mouse.get_pos()
-            for item in self.items:
-                name, x, y, font, item_num = item[0], item[1], item[2], item[3], item[6]
-                size_x, size_y = font.size(name)
+            items_not_active = True  # Все пункты не активны.
+            for item, font_size in zip(self.items, self.fonts_sizes):
+                name, x, y, item_num = item[0], item[1], item[2], item[6]
+                size_x, size_y = font_size
+                # Если мышь наведена на пункт.
                 if x < mouse_x < x + size_x and y < mouse_y < y + size_y:
+                    # Этот пункт становится активным.
+                    items_not_active = False
                     active_item_num = item_num
+                    # Если нажали левой кнопкой мыши.
                     if pg.mouse.get_pressed(3)[0]:
                         self.items[active_item_num][7]()
 
+            # Если все пункты не активны, то номер активного пункта не определён.
+            if items_not_active:
+                active_item_num = None
+
+            # Если нажали ALT+F4.
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg.quit()
                     sys.exit()
-                elif event.type == pg.KEYDOWN:
-                    if event.key == pg.K_UP and active_item_num:
-                        active_item_num -= 1
-                    elif event.key == pg.K_DOWN and active_item_num < max_item_index:
-                        active_item_num += 1
-                    elif event.key == pg.K_RETURN:
-                        self.items[active_item_num][7]()
 
-            self.render(active_item_num)
-            screen.blit(self.surface, (0, 0))
-            pg.display.flip()
+            screen.blit(surface, (0, 0))  # Отрисовываю surface на мониторе.
+            self.render(active_item_num)  # Отрисовываю пункты и предложения на мониторе.
+            pg.display.flip()  # Обновляю монитор.
 
 
 class SettingsList(List):
@@ -176,21 +184,22 @@ class Round:
 # Создаю фон для всей игры, учитывая разрешени экрана.
 background = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
 
-# Создаю игровое меню
+# Создаю игровое меню.
 main_menu_font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
+# Чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
 main_menu_font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
 main_menu_font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
 main_menu_sentences = (
     ("Тетрис", W // 2 - 155, 0, main_menu_font3, (255, 0, 0)),
     ("Автор: Афанасин Егор", 100, H - 100, main_menu_font1, (54, 54, 54)),
 )
-main_menu_items = ( # print заменится на функции
+main_menu_items = (
     ("Играть", W // 2 - 80, 100, main_menu_font2, (0, 0, 0), (255, 0, 0), 0, print),
     ("Помощь", W // 2 - 80, 180, main_menu_font2, (0, 0, 0), (255, 0, 0), 1, print),
     ("Рекорды", W // 2 - 80, 260, main_menu_font2, (0, 0, 0), (255, 0, 0), 2, print),
     ("Выйти", W // 2 - 80, 340, main_menu_font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 
 )
-main_menu = Menu(background, main_menu_sentences, main_menu_items)
+main_menu = Menu(main_menu_sentences, main_menu_items)
 
-main_menu.main()
+main_menu.main(background)
