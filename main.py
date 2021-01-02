@@ -28,10 +28,10 @@ class List:
     """Класс List используется для графического отображения списка предложений.
 
         Основое применение:
-            Является родительским классом для: Menu, SettingsList, RecordsList.
+            Является родительским классом для: Menu.
 
       Примечание:
-            Должны быть больше 1 предложения.
+            Чтобы отобразить только 1 предложение, передай кортеж предложений вот так: ((параметры предложения), ).
 
         Атрибуты:
             sentences: tuple(tuple):
@@ -61,7 +61,8 @@ class Menu(List):
            Является родительским классом для: MainMenu, GameOverMenu, PauseMenu.
 
         Примечание:
-            Должно быть больше 1 предложения и больше 1 пункта.
+            Чтобы отобразить только 1 предложение, передай кортеж предложения вот так: ((параметры предложения), ).
+            Чтобы отобразить только 1 пункт, передай кортеж пункта вот так: ((параметры пункта), ).
 
         Атрибуты:
             sentences: tuple(tuple):
@@ -90,7 +91,8 @@ class Menu(List):
 
             main(surface: pygame.Surface: поверхность, которая будет отрисована на экране screen):
                 Входит в цикл, который создаёт меню, используя surface, self.sentences и self.items.
-                    Единственный способ выйти из цикла - нажать ALT+F4.
+                Если выбрать пункт, функция которого равна 'return', то цикл завершится, вернув None.
+                Если нажать ALT+F4, вся программа завершится.
     """
 
     def __init__(self, sentences: tuple, items: tuple):
@@ -113,7 +115,7 @@ class Menu(List):
         # Отрисовываю предложения.
         self.render_sentences()
 
-    def main(self, surface):
+    def main(self) -> None:
         active_item_num = None  # При запуске номер активного пункта не определён.
         while True:
             mouse_x, mouse_y = pg.mouse.get_pos()
@@ -128,7 +130,11 @@ class Menu(List):
                     active_item_num = item_num
                     # Если нажали левой кнопкой мыши.
                     if pg.mouse.get_pressed(3)[0]:
-                        self.items[active_item_num][7]()
+                        action = self.items[active_item_num][7]
+                        if action == 'return':
+                            return None  # Возращаемся на предыдущую сцену.
+                        else:
+                            action()
 
             # Если все пункты не активны, то номер активного пункта не определён.
             if items_not_active:
@@ -140,16 +146,9 @@ class Menu(List):
                     pg.quit()
                     sys.exit()
 
-            screen.blit(surface, (0, 0))  # Отрисовываю surface на мониторе.
+            screen.blit(background, (0, 0))  # Отрисовываю surface на мониторе.
             self.render(active_item_num)  # Отрисовываю пункты и предложения на мониторе.
             pg.display.flip()  # Обновляю монитор.
-
-
-class SettingsList(List):
-    """
-    Здесь будут хоткеи, описание раундов, правила начисления очков.
-    Вторичный цикл"""
-    HOTKEYS = {}
 
 
 class RecordsList(List):
@@ -183,23 +182,31 @@ class Round:
 
 # Создаю фон для всей игры, учитывая разрешени экрана.
 background = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
+# Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
+font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
+font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
+font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
 
-# Создаю игровое меню.
-main_menu_font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
-# Чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
-main_menu_font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
-main_menu_font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
+# Создаю сцену помощи. TODO Сделать нормально.
+assistance_sentences = (
+    ("В разработке", W // 2, H // 2, font1, (0, 0, 0)),
+)
+assistance_items = (
+    ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0), 0, 'return'),
+)
+assistance = Menu(assistance_sentences, assistance_items)
+
+# Создаю сцену игрового меню.
 main_menu_sentences = (
-    ("Тетрис", W // 2 - 155, 0, main_menu_font3, (255, 0, 0)),
-    ("Автор: Афанасин Егор", 100, H - 100, main_menu_font1, (54, 54, 54)),
+    ("Тетрис", W // 2 - 155, 0, font3, (255, 0, 0)),
+    ("Автор: Афанасин Егор", 100, H - 100, font1, (54, 54, 54)),
 )
 main_menu_items = (
-    ("Играть", W // 2 - 80, 100, main_menu_font2, (0, 0, 0), (255, 0, 0), 0, print),
-    ("Помощь", W // 2 - 80, 180, main_menu_font2, (0, 0, 0), (255, 0, 0), 1, print),
-    ("Рекорды", W // 2 - 80, 260, main_menu_font2, (0, 0, 0), (255, 0, 0), 2, print),
-    ("Выйти", W // 2 - 80, 340, main_menu_font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
-
+    ("Играть", W // 2 - 80, 100, font2, (0, 0, 0), (255, 0, 0), 0, print),
+    ("Помощь", W // 2 - 80, 180, font2, (0, 0, 0), (255, 0, 0), 1, assistance.main),
+    ("Рекорды", W // 2 - 80, 260, font2, (0, 0, 0), (255, 0, 0), 2, print),
+    ("Выйти", W // 2 - 80, 340, font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 )
 main_menu = Menu(main_menu_sentences, main_menu_items)
 
-main_menu.main(background)
+main_menu.main()
