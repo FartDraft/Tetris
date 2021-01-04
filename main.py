@@ -5,17 +5,15 @@ import pygame as pg
 from os import path
 import sys
 from random import choice, randrange
-from copy import deepcopy  # TODO cделать документ строку ко всем функциям
+from copy import deepcopy
 
 
 pg.init()
 
-allowed_keys = (
-    pg.QUIT, pg.KEYDOWN, pg.KEYUP
-)
-
 pg.display.set_caption("Tetris")
 pg.display.set_icon(pg.image.load(path.join("Resources", "Images", "icon.png")))  # path.abspath("icon.png")
+# pg.FULLSCREEN - полноэкранный режим, pg.HWSURFACE - аппаратное ускорение, pg.DOUBLEBUF - двойная буферизация.
+# (0, 0) - созданная поверхность будет иметь тот же размер, что и текущее разрешение экрана.
 screen = pg.display.set_mode((0, 0), flags=pg.FULLSCREEN | pg.HWSURFACE | pg.DOUBLEBUF)
 W, H = pg.display.get_window_size()
 
@@ -25,6 +23,7 @@ clock = pg.time.Clock()
 # Фон для всей игры, учитывая разрешение экрана.
 background = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
 
+allowed_keys = (pg.QUIT, pg.KEYDOWN, pg.KEYUP)
 pg.event.set_blocked(None)  # Блокирую все типы событий для помещений в очередь событий.
 pg.event.set_allowed(allowed_keys)  # Разрешаю только нужные мне типы событий.
 
@@ -73,6 +72,11 @@ class List:
         self.sentences = sentences
 
     def render_sentences(self) -> None:
+        """Метод для отрисовки предложений.
+
+        Возвращаемое значение:
+            None
+        """
         for name, x, y, font, color in self.sentences:
             screen.blit(font.render(name, True, color), (x, y))
 
@@ -114,7 +118,7 @@ class Menu(List):
 
             main(surface: pygame.Surface: поверхность, которая будет отрисована на экране screen):
                 Входит в цикл, который создаёт меню, используя surface, self.sentences и self.items.
-                Если выбрать пункт, функция которого равна 'return', то цикл завершится, вернув None.
+                Если выбрать пункт, функция которого равна 'return', то цикл завершится, вернув имя этого пункта.
                 Если нажать ALT+F4, вся программа завершится.
     """
 
@@ -125,32 +129,38 @@ class Menu(List):
         self.fonts_sizes = tuple(item[3].size(item[0]) for item in items)
 
     def render(self, active_item_num: int) -> None:
-        # Отрисовываю пункты.
+        """Метод для отрисовки пунктов и предложений.
+
+        Аргументы:
+            active_item_num: int:  номер активного пункта в данный момент времени.
+
+        Возвращаемое значение:
+            None
+        """
+        # Если есть активный пункт - рисую его активным цветом, а все остальные пункты - неактивным.
         if active_item_num is not None:
             for name, x, y, font, unselect_color, select_color, item_num, _ in self.items:
                 if active_item_num == item_num:
                     screen.blit(font.render(name, True, select_color), (x, y))
                 else:
                     screen.blit(font.render(name, True, unselect_color), (x, y))
-        else:
+        else:  # Если нет ни одного активного пункта - русую все пункты неактивным цветом.
             for name, x, y, font, unselect_color, _, item_num, _ in self.items:
                 screen.blit(font.render(name, True, unselect_color), (x, y))
-        # Отрисовываю предложения.
         self.render_sentences()
 
     def main(self) -> None:
-        active_item_num = None  # При запуске номер активного пункта не определён.
+        active_item_num = None  # В начале номер активного пункта не определён.
         while True:
-            mouse_x, mouse_y = pg.mouse.get_pos()
-            items_not_active = True  # Все пункты не активны.
+            mouse_x, mouse_y = pg.mouse.get_pos()  # Координаты текущего положения курсора мыши.
+            items_not_active = True  # Все пункты в начале каждой итерации цикла не активны.
             for item, font_size in zip(self.items, self.fonts_sizes):
                 name, x, y, item_num = item[0], item[1], item[2], item[6]
                 size_x, size_y = font_size
                 # Если мышь наведена на пункт.
                 if x < mouse_x < x + size_x and y < mouse_y < y + size_y:
-                    # Этот пункт становится активным.
-                    items_not_active = False
-                    active_item_num = item_num
+                    items_not_active = False  # В этой итерации цикла есть активные пункты.
+                    active_item_num = item_num  # Этот пункт становится активным.
                     # Если нажали левой кнопкой мыши.
                     if pg.mouse.get_pressed(3)[0]:
                         action = self.items[active_item_num][7]
@@ -159,7 +169,7 @@ class Menu(List):
                         else:
                             action()
 
-            # Если все пункты не активны, то номер активного пункта не определён.
+            # Если все пункты в этой итерации цикла не активны, то номер активного пункта не определён.
             if items_not_active:
                 active_item_num = None
 
@@ -190,7 +200,7 @@ class PauseMenu(Menu):
 class Round:
     def __init__(self):  # TODO передавать номер текущего раунда
         # Двумерный массив, отображающий заполненность стакана.
-        self.field = [[False for i in range(WT)] for j in range(HT)]
+        self.field = [[False for _ in range(WT)] for _ in range(HT)]
         # Глубокая копия, т.к. figures - двумерный массив.
         self.figure, self.next_figure = deepcopy(choice(figures)), deepcopy(choice(figures))
         # TODO сделать свой цвет для каждого раунда
@@ -198,7 +208,8 @@ class Round:
         # TODO сделать свою скорость падения для каждого раунда
         self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 60, 2000
 
-    def abroad_x(self, figure):
+    @staticmethod
+    def abroad_x(figure):
         # Нахожу минимальную и максимальную координату по оси 0x квадратов тетромино.
         min_x = W
         max_x = 0
@@ -207,10 +218,11 @@ class Round:
             max_x = max(max_x, figure[i].x)
         # Минимальный квадрат по оси 0x вышел за левую границу стакана или
         # максимальный квадрат по оси 0x вышел за правую границу стакана.
-        return not (CENTER + 2 <= min_x * TILE + CENTER + 2) or \
-               not (max_x * TILE + CENTER - 2 <= CENTER + (WT - 1) * TILE - 2)
+        return (not (CENTER + 2 <= min_x * TILE + CENTER + 2) or
+                not (max_x * TILE + CENTER - 2 <= CENTER + (WT - 1) * TILE - 2))
 
-    def abroad_y(self, figure):
+    @staticmethod
+    def abroad_y(figure):
         # Нахожу максимальную координату по оси 0y квадратов тетромино.
         max_y = 0
         for i in range(4):
@@ -218,17 +230,18 @@ class Round:
                 max_y = figure[i].y
         return not max_y * TILE < TILE * HT  # Если тетромино упало в стакан.
 
+    @staticmethod
+    def is_square(figure):
+        # Является ли тетромино квадратом
+        return (figure[0].x == figure[3].x and figure[1].x == figure[2].x and figure[0].y == figure[1].y
+                and figure[2].y == figure[3].y)
+
     def collision(self, figure):
         # Столкнулось ли активное тетромино с квадратами тетромино в стакане.
         for i in range(4):
             if self.field[figure[i].y][figure[i].x]:
                 return True
         return False
-
-    def is_square(self, figure):
-        # Является ли тетромино квадратом
-        return (figure[0].x == figure[3].x and figure[1].x == figure[2].x and figure[0].y == figure[1].y
-                and figure[2].y == figure[3].y)
 
     def main(self):
         while True:
@@ -292,7 +305,7 @@ class Round:
                 figure_rect.x = CENTER + self.figure[i].x * TILE + 2
                 figure_rect.y = (self.figure[i].y + 1) * TILE + 2
                 # Рисую квадрат фигуры на новых координатах
-                pg.draw.rect(screen, (self.color), figure_rect)
+                pg.draw.rect(screen, self.color, figure_rect)
             # Отрисовываю квадраты других фигур на поле.
             for y, raw in enumerate(self.field):
                 for x, flag in enumerate(raw):
@@ -305,12 +318,12 @@ class Round:
                 figure_rect.x = CENTER + self.next_figure[i].x * TILE + 2 + 300
                 figure_rect.y = (self.next_figure[i].y + 1) * TILE + 2 + 300
                 # Рисую квадрат тетромино на новых координатах.
-                pg.draw.rect(screen, (self.color), figure_rect)
+                pg.draw.rect(screen, self.color, figure_rect)
             # Удаляю заполненные линии, если таковые есть.
             field = self.field
             for y in range(HT):
                 if all(self.field[y]):
-                    field = [[False for x in range(WT)]] + self.field[:y] + self.field[y + 1:]
+                    field = [[False for _ in range(WT)]] + self.field[:y] + self.field[y + 1:]
             self.field = field
             # Конец игры.
             if any(field[0]):  # Если в первой линии есть любой квадрат.
@@ -325,7 +338,6 @@ class Round:
 
             pg.display.flip()  # Обновляю монитор.
             clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду
-
 
 
 # Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
@@ -352,6 +364,7 @@ records_items = (
 )
 records = Menu(records_sentences, records_items)
 
+# Создаю новый раунд. TODO сделать цикл новых раундов, где каждый новый раунд начинается с какого-то количества очков
 new_round = Round()
 
 # Создаю сцену игрового меню.
