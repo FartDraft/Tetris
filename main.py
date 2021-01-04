@@ -21,7 +21,7 @@ FPS = 60
 clock = pg.time.Clock()
 
 # Фон для всей игры, учитывая разрешение экрана.
-background = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
+BACKGROUND = pg.transform.scale(pg.image.load(path.join("Resources", "Images", "background.jpg")).convert(), (W, H))
 
 allowed_keys = (pg.QUIT, pg.KEYDOWN, pg.KEYUP)
 pg.event.set_blocked(None)  # Блокирую все типы событий для помещений в очередь событий.
@@ -32,7 +32,7 @@ TILE = H // (HT + 2)  # Размер плитки стакана.
 CENTER = (W - (WT * TILE)) // 2  # Смещение по оси 0x от краёв экрана до краёв стакана.
 # Координаты сетки стакана.
 grid = [pg.Rect(CENTER + TILE * x, TILE * (y + 1), TILE, TILE) for x in range(WT) for y in range(HT)]
-# Координаты каждого квадрата тетромино, где первая координата каждого тетромино - его центр вращения.
+# Координаты каждого квадрата тетрамино, где первая координата каждого тетрамино - его центр вращения.
 figures_pos = [[(-1, -1), (-2, -1), (0, -1), (1, -1)],
                [(0, -1), (-1, -1), (-1, 0), (0, 0)],
                [(-1, 0), (-1, 1), (0, 0), (0, -1)],
@@ -42,7 +42,7 @@ figures_pos = [[(-1, -1), (-2, -1), (0, -1), (1, -1)],
                [(0, 0), (0, -1), (0, 1), (-1, 0)]]
 # Координаты квадратов фигур на сетке стакана.
 figures = [[pg.Rect(x + 5, y + 1, 1, 1) for x, y in figure_pos] for figure_pos in figures_pos]
-# Квадрат меньшего размера (учитывается ширина линии сетки) для отрисовки квадратов тетромино.
+# Квадрат меньшего размера (учитывается ширина линии сетки) для отрисовки квадратов тетрамино.
 figure_rect = pg.Rect(0, 0, TILE - 3, TILE - 3)
 
 
@@ -66,7 +66,7 @@ class List:
             }
 
         Методы:
-            render_sentences(): Отрисовывает предложения на поверхности surface, используя self.sentences.
+            render_sentences(self): Отрисовывает предложения на поверхности surface, используя self.sentences.
     """
     def __init__(self, sentences: tuple):
         self.sentences = sentences
@@ -113,13 +113,13 @@ class Menu(List):
             }
 
         Методы:
-            render(active_item_num: int: номер активного пункта меню на данный момент времени):
+            render(self, active_item_num: int: номер активного пункта меню на данный момент времени):
                 Отрисовывает пункты и предложения, используя self.sentences и self.items.
 
-            main(surface: pygame.Surface: поверхность, которая будет отрисована на экране screen):
+            main(self, surface: pygame.Surface: поверхность, которая будет отрисована на экране screen):
                 Входит в цикл, который создаёт меню, используя surface, self.sentences и self.items.
-                Если выбрать пункт, функция которого равна 'return', то цикл завершится, вернув имя этого пункта.
-                Если нажать ALT+F4, вся программа завершится.
+                Если выбрать пункт, функция которого равна 'return', то цикл завершится,
+                вернув имя этого пункта предыдущей сцене. Если нажать ALT+F4, вся программа завершится.
     """
 
     def __init__(self, sentences: tuple, items: tuple):
@@ -149,7 +149,12 @@ class Menu(List):
                 screen.blit(font.render(name, True, unselect_color), (x, y))
         self.render_sentences()
 
-    def main(self) -> None:
+    def main(self) -> str:
+        """Метод для создания меню.
+
+        Возвращаемое значение:
+            str: имя выбранного пункта, функция которого равна 'return'.
+        """
         active_item_num = None  # В начале номер активного пункта не определён.
         while True:
             mouse_x, mouse_y = pg.mouse.get_pos()  # Координаты текущего положения курсора мыши.
@@ -179,7 +184,7 @@ class Menu(List):
                     pg.quit()
                     sys.exit()
 
-            screen.blit(background, (0, 0))  # Отрисовываю background на мониторе.
+            screen.blit(BACKGROUND, (0, 0))  # Отрисовываю BACKGROUND на мониторе.
             self.render(active_item_num)  # Отрисовываю пункты и предложения на мониторе.
             pg.display.flip()  # Обновляю монитор.
             clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду.
@@ -198,6 +203,34 @@ class PauseMenu(Menu):
 
 
 class Round:
+    """Класс Round.
+
+        Атрибуты:
+            в разработке
+
+        Статические методы:
+            abroad_x(tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.) -> bool:
+                Проверяет, вышло ли тетрамино за левую или правую границу стакана.
+                Возвращает True - если тетрамино вышло, иначе - False.
+
+            abroad_y(tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.) -> bool:
+                Проверяет, упало ли тетрамино в стакан.
+                Возвращает True - если тетрамино упало, иначе - False.
+
+            is_square(tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.) -> bool:
+                Проверка тетрамино на квадратность.
+                Возвращает True - если тетрамино квадратно, иначе - False.
+
+            above(tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.) -> bool:
+                Проверка тетрамино на выход за границу верха стакана.
+                Возвращает True - если тетрамино вышло, иначе - False.
+
+        Методы:
+            collision(self, figure) -> bool:
+                Проверяет тетрамино на столкновение с квадратами других тетрамино в стакане.
+                Возвращает True - если тетрамино столкнулось, иначе - False.
+
+    """
     def __init__(self):  # TODO передавать номер текущего раунда
         # Двумерный массив, отображающий заполненность стакана.
         self.field = [[False for _ in range(WT)] for _ in range(HT)]
@@ -209,35 +242,80 @@ class Round:
         self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 60, 2000
 
     @staticmethod
-    def abroad_x(figure):
-        # Нахожу минимальную и максимальную координату по оси 0x квадратов тетромино.
+    def abroad_x(figure) -> bool:
+        """Проверяет, вышло ли тетрамино за левую или правую границу стакана.
+
+        Аргументы:
+                figure: tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.
+
+        Возвращаемое значение:
+                bool: True - если тетрамино вышло, иначе - False.
+        """
+        # Нахожу минимальную и максимальную координату по оси 0x квадратов тетрамино.
         min_x = W
         max_x = 0
         for i in range(4):
             min_x = min(min_x, figure[i].x)
             max_x = max(max_x, figure[i].x)
-        # Минимальный квадрат по оси 0x вышел за левую границу стакана или
-        # максимальный квадрат по оси 0x вышел за правую границу стакана.
+        # Квадрат с минимальной координатой по оси 0x вышел за левую границу стакана или
+        # квадрат с максимальной координатой по оси 0x вышел за правую границу стакана.
         return (not (CENTER + 2 <= min_x * TILE + CENTER + 2) or
                 not (max_x * TILE + CENTER - 2 <= CENTER + (WT - 1) * TILE - 2))
 
     @staticmethod
-    def abroad_y(figure):
-        # Нахожу максимальную координату по оси 0y квадратов тетромино.
+    def abroad_y(figure) -> bool:
+        """Проверяет, упало ли тетрамино в стакан.
+
+        Аргументы:
+                figure: tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.
+
+        Возвращаемое значение:
+                bool: True - если тетрамино упало, иначе - False.
+        """
+        # Нахожу максимальную координату по оси 0y квадратов тетрамино.
         max_y = 0
         for i in range(4):
             if max_y < figure[i].y:
                 max_y = figure[i].y
-        return not max_y * TILE < TILE * HT  # Если тетромино упало в стакан.
+        return not max_y * TILE < TILE * HT
 
     @staticmethod
-    def is_square(figure):
-        # Является ли тетромино квадратом
+    def is_square(figure) -> bool:
+        """Проверка тетрамино на квадратность.
+
+        Аргументы:
+            figure: tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.
+
+        Возвращаемое значение:
+            bool: True - если тетрамино квадратно, иначе - False.
+        """
         return (figure[0].x == figure[3].x and figure[1].x == figure[2].x and figure[0].y == figure[1].y
                 and figure[2].y == figure[3].y)
 
-    def collision(self, figure):
-        # Столкнулось ли активное тетромино с квадратами тетромино в стакане.
+    @staticmethod
+    def above(figure) -> bool:
+        """Проверка тетрамино на выход за границу верха стакана.
+
+        Аргументы:
+            figure: tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.
+
+        Возвращаемое значение:
+            bool: True - если тетрамино вышло, иначе - False.
+        """
+        for i in range(4):
+            if figure[i].y < 0:
+                return True
+        return False
+
+    def collision(self, figure) -> bool:
+        """Метод для проверки тетрамино на столкновение с квадратами других тетрамино в стакане.
+
+        Аргументы:
+                figure: tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.
+
+        Возвращаемое значение:
+                bool: True - если тетрамино столкнулось, иначе - False.
+        """
         for i in range(4):
             if self.field[figure[i].y][figure[i].x]:
                 return True
@@ -260,7 +338,7 @@ class Round:
                     elif event.key == pg.K_UP and not self.is_square(self.figure):  # Квадрат не нужно вращать.
                         rotate = True
 
-            # Двигаю тетромино по оси 0x.
+            # Двигаю тетрамино по оси 0x.
             figure_old = deepcopy(self.figure)
             for i in range(4):
                 self.figure[i].x += dx
@@ -268,14 +346,14 @@ class Round:
             if self.abroad_x(self.figure) or self.collision(self.figure):
                 self.figure = figure_old
 
-            # Двигаю тетромино по оси 0y.
+            # Двигаю тетрамино по оси 0y.
             self.anim_count_y += self.anim_speed_y
             if self.anim_count_y > self.anim_limit_y:
                 self.anim_count_y = 0
                 figure_old = deepcopy(self.figure)
                 for i in range(4):
                     self.figure[i].y += 1
-                # Если вышли за дно стакана или столкнулись с другим тетромино.
+                # Если вышли за дно стакана или столкнулись с другим тетрамино.
                 if self.abroad_y(self.figure) or self.collision(self.figure):
                     for i in range(4):
                         self.field[figure_old[i].y][figure_old[i].x] = True
@@ -283,7 +361,7 @@ class Round:
                     self.next_figure = deepcopy(choice(figures))
                     self.anim_limit_y = 2000
 
-            # Поворачиваю тетромино на 90 градусов.
+            # Поворачиваю тетрамино на 90 градусов.
             center = self.figure[0]
             figure_old = deepcopy(self.figure)
             if rotate:
@@ -292,16 +370,16 @@ class Round:
                     y = self.figure[i].x - center.x
                     self.figure[i].x = center.x - x
                     self.figure[i].y = center.y + y
-            # Если при повороте тетромино столкнулось с квадратами других тетромино в стакане или вышло из стакана(бывает только у палки).
-            if self.abroad_x(self.figure) or self.abroad_y(self.figure) or self.collision(self.figure) or self.figure[1].y > TILE:
+            # Если при повороте тетрамино столкнулось с квадратами других тетрамино в стакане или вышло из стакана(бывает только у палки).
+            if self.abroad_x(self.figure) or self.abroad_y(self.figure) or self.collision(self.figure) or self.above(self.figure):
                 self.figure = deepcopy(figure_old)
 
-            screen.blit(background, (0, 0))  # Отрисовываю background на мониторе.
+            screen.blit(BACKGROUND, (0, 0))  # Отрисовываю BACKGROUND на мониторе.
 
             [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid]  # Отрисовываю сетку стакана с толщиной = 2.
-            # Отрисовываю тетромино.
+            # Отрисовываю тетрамино.
             for i in range(4):
-                # Рассчитываю новые координаты для квадрата тетромино, учитывая толщину линии и смещение по оси 0x.
+                # Рассчитываю новые координаты для квадрата тетрамино, учитывая толщину линии и смещение по оси 0x.
                 figure_rect.x = CENTER + self.figure[i].x * TILE + 2
                 figure_rect.y = (self.figure[i].y + 1) * TILE + 2
                 # Рисую квадрат фигуры на новых координатах
@@ -314,10 +392,10 @@ class Round:
                         pg.draw.rect(screen, self.color, figure_rect)
             # Рисую следущую фигуру. TODO уравнять для всех мониторов, сделать в сетку, в окошке.
             for i in range(4):
-                # Рассчитываю новые координаты для квадрата тетромино, учитывая толщину линии и смещение по оси 0x.
+                # Рассчитываю новые координаты для квадрата тетрамино, учитывая толщину линии и смещение по оси 0x.
                 figure_rect.x = CENTER + self.next_figure[i].x * TILE + 2 + 300
                 figure_rect.y = (self.next_figure[i].y + 1) * TILE + 2 + 300
-                # Рисую квадрат тетромино на новых координатах.
+                # Рисую квадрат тетрамино на новых координатах.
                 pg.draw.rect(screen, self.color, figure_rect)
             # Удаляю заполненные линии, если таковые есть.
             field = self.field
