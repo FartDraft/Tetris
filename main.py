@@ -45,6 +45,14 @@ figures = [[pg.Rect(x + 5, y + 1, 1, 1) for x, y in figure_pos] for figure_pos i
 # Квадрат меньшего размера (учитывается ширина линии сетки) для отрисовки квадратов тетрамино.
 figure_rect = pg.Rect(0, 0, TILE - 3, TILE - 3)
 
+rounds_colors = (
+    (47, 79, 79),  # gray
+    (255, 69, 0), (220, 20, 60), (178, 34, 34), (255, 0, 0), (139, 0, 0), (128, 0, 0),  # red
+    (139, 69, 19), (165, 42, 42),  # brown
+    (199, 21, 133), (148, 0, 211), (128, 0, 128), (139, 0, 139), (75, 0, 130), (72, 61, 139),  # purple
+    (0, 0, 255), (0, 0, 205), (0, 0, 139), (0, 0, 128), (25, 25, 112)  # blue
+)
+
 
 class List:
     """Класс List используется для графического отображения списка предложений.
@@ -231,15 +239,21 @@ class Round:
                 Возвращает True - если тетрамино столкнулось, иначе - False.
 
     """
-    def __init__(self):  # TODO передавать номер текущего раунда
+    def __init__(self):
+        # Deepcopy - глубокая копия, т.к. figures - двумерный массив.
+        self.figure, self.next_figure = deepcopy(choice(figures)), deepcopy(choice(figures))
         # Двумерный массив, отображающий заполненность стакана.
         self.field = [[False for _ in range(WT)] for _ in range(HT)]
-        # Глубокая копия, т.к. figures - двумерный массив.
-        self.figure, self.next_figure = deepcopy(choice(figures)), deepcopy(choice(figures))
-        # TODO сделать свой цвет для каждого раунда
-        self.color = (randrange(250), randrange(250), randrange(250))
-        # TODO сделать свою скорость падения для каждого раунда
-        self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 60, 2000
+        self.num = 1  # Номер раунда, при создании раунда равен 1.
+        self.record = 0  # Рекорд при создании раунда равен 0.
+
+        # Переменные, зависящие от номера раунда.
+        self.color = rounds_colors[self.num - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
+        # Количество очков за 1, 2, 3, 4 линии.
+        self.lines_points = (100 * self.num, 300 * self.num, 700 * self.num, 1500 * self.num)
+        # Переменные для контролирования движения тетрамино по осям 0y и 0x.
+        self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 40 + 20 * self.num, 2000
+        self.anim_count_x, self.anim_speed_x, self.anim_limit_x = 0, 360 + 7 * self.num, 2000
 
     @staticmethod
     def abroad_x(figure) -> bool:
@@ -322,88 +336,127 @@ class Round:
         return False
 
     def main(self):
+        stack = [None]  # Очередь действий, в начале тетрамино не нужно никуда двигать.
         while True:
-            dx, rotate = 0, False
+            rotate = False  # В начале тетрамино не нужно поворачивать.
             for event in pg.event.get():
-                if event.type == pg.QUIT:
+                if event.type == pg.QUIT:  # Если нажали ALT+F4.
                     pg.quit()
                     sys.exit()
-                if event.type == pg.KEYDOWN:
-                    if event.key == pg.K_LEFT:
-                        dx = -1
-                    elif event.key == pg.K_RIGHT:
-                        dx = 1
-                    elif event.key == pg.K_DOWN:
-                        self.anim_limit_y = 100
-                    elif event.key == pg.K_UP and not self.is_square(self.figure):  # Квадрат не нужно вращать.
-                        rotate = True
+                if event.type == pg.KEYDOWN:  # Если клавишу нажали.
+                    if event.key == pg.K_LEFT:  # Если это стрелка влево.
+                        self.anim_limit_x = 0  # Позволяю сдвинуть тетромино на одну клетку влево.
+                        stack.append('left')  # Добавляю действие двигаться влево из очереди действий.
+                    elif event.key == pg.K_RIGHT:  # Если это стрелка вправо.
+                        self.anim_limit_x = 0  # Позволяю сдвинуть тетромино на одну клетку вправо.
+                        stack.append('right')  # Добавляю действие двигаться вправо из очереди действий.
+                    elif event.key == pg.K_DOWN:  # Если это стрелка вниз.
+                        self.anim_limit_y = 0  # Устремляю тетромино вниз стакана.
+                    # Если это стрелка вверх и тетрамино не является квадратом.
+                    elif event.key == pg.K_UP and not self.is_square(self.figure):
+                        rotate = True  # Тетрамино необходимо повернуть.
+                elif event.type == pg.KEYUP:  # Если клавишу отпустили.
+                    if event.key == pg.K_LEFT:  # Если это стрелка влево.
+                        stack.pop(stack.index('left'))  # Удалям действие двигаться влево из очереди действий.
+                    elif event.key == pg.K_RIGHT:  # Если это стрелка вправо.
+                        stack.pop(stack.index('right'))  # Удалям действие двигаться вправо из очереди действий.
+
+            # Вектор движения равен последнему действию.
+            if stack[-1] == 'left':
+                dx = -1
+            elif stack[-1] == 'right':
+                dx = 1
+            else:
+                dx = 0
 
             # Двигаю тетрамино по оси 0x.
-            figure_old = deepcopy(self.figure)
-            for i in range(4):
-                self.figure[i].x += dx
-            # Если вышли за границы - оставляю координаты старой фигуры.
-            if self.abroad_x(self.figure) or self.collision(self.figure):
-                self.figure = figure_old
-
-            # Двигаю тетрамино по оси 0y.
-            self.anim_count_y += self.anim_speed_y
-            if self.anim_count_y > self.anim_limit_y:
-                self.anim_count_y = 0
-                figure_old = deepcopy(self.figure)
+            self.anim_count_x += self.anim_speed_x
+            if self.anim_count_x > self.anim_limit_x:
+                self.anim_count_x = 0  # Обнуляю счётчик анимации x.
+                self.anim_limit_x = 2000  # Обновляю значение, на случай, если были нажаты стрелки влево или вправо.
+                figure_old = deepcopy(self.figure)  # Сохраняю координаты тетрамино.
+                # Двигаю тетрамино по оси 0x в нужном направлении.
                 for i in range(4):
-                    self.figure[i].y += 1
-                # Если вышли за дно стакана или столкнулись с другим тетрамино.
-                if self.abroad_y(self.figure) or self.collision(self.figure):
-                    for i in range(4):
-                        self.field[figure_old[i].y][figure_old[i].x] = True
-                    self.figure = self.next_figure
-                    self.next_figure = deepcopy(choice(figures))
-                    self.anim_limit_y = 2000
+                    self.figure[i].x += dx
+                # Если вышли за границы - оставляю координаты старого тетрамино.
+                if self.abroad_x(self.figure) or self.collision(self.figure):
+                    self.figure = figure_old
 
-            # Поворачиваю тетрамино на 90 градусов.
-            center = self.figure[0]
-            figure_old = deepcopy(self.figure)
-            if rotate:
+            if rotate:  # Если была нажата стрелка вверх.
+                center = self.figure[0]  # Центр тетрамино - всегда 0 элемент.
+                figure_old = deepcopy(self.figure)  # Сохраняю координаты тетрамино.
+                # Поворачиваю тетрамино на 90 градусов.
                 for i in range(4):
                     x = self.figure[i].y - center.y
                     y = self.figure[i].x - center.x
                     self.figure[i].x = center.x - x
                     self.figure[i].y = center.y + y
-            # Если при повороте тетрамино столкнулось с квадратами других тетрамино в стакане или вышло из стакана(бывает только у палки).
-            if self.abroad_x(self.figure) or self.abroad_y(self.figure) or self.collision(self.figure) or self.above(self.figure):
-                self.figure = deepcopy(figure_old)
+                # Если при повороте тетрамино столкнулось с квадратами других тетрамино или вышло за границы стакана.
+                if (self.abroad_x(self.figure) or self.abroad_y(self.figure) or
+                        self.collision(self.figure) or self.above(self.figure)):
+                    self.figure = deepcopy(figure_old)  # Оставляю координаты старого тетрамино.
+
+            # Двигаю тетрамино по оси 0y.
+            self.anim_count_y += self.anim_speed_y
+            if self.anim_count_y > self.anim_limit_y:
+                self.anim_count_y = 0  # Обнуляю счётчик анимации y.
+                figure_old = deepcopy(self.figure)  # Сохраняю координаты тетрамино.
+                # Двигаю тетрамино по оси 0y в нужном направлении.
+                for i in range(4):
+                    self.figure[i].y += 1
+                # Если тетрамино упало на дно стакана или столкнулось с квадратами других тетрамино.
+                if self.abroad_y(self.figure) or self.collision(self.figure):
+                    # Заношу в массив заполненности стакана.
+                    for i in range(4):
+                        self.field[figure_old[i].y][figure_old[i].x] = True
+                    # Обновляю значение падающего тетрамино.
+                    # Не deepcopy потому что в следующей строке значение self.next_figure меняется на случайное.
+                    self.figure = self.next_figure
+                    self.next_figure = deepcopy(choice(figures))
+                    self.anim_limit_y = 2000  # Обновляю значение, на случай, если была нажата стрелка вниз.
 
             screen.blit(BACKGROUND, (0, 0))  # Отрисовываю BACKGROUND на мониторе.
 
-            [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid]  # Отрисовываю сетку стакана с толщиной = 2.
-            # Отрисовываю тетрамино.
+            [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid]  # Отрисовываю сетку стакана с толщиной 2.
+
+            # Отрисовываю падающее тетрамино.
             for i in range(4):
                 # Рассчитываю новые координаты для квадрата тетрамино, учитывая толщину линии и смещение по оси 0x.
                 figure_rect.x = CENTER + self.figure[i].x * TILE + 2
                 figure_rect.y = (self.figure[i].y + 1) * TILE + 2
-                # Рисую квадрат фигуры на новых координатах
+                # Рисую квадрат фигуры на новых координатах.
                 pg.draw.rect(screen, self.color, figure_rect)
-            # Отрисовываю квадраты других фигур на поле.
+
+            # Отрисовываю квадраты других тетрамино на поле.
             for y, raw in enumerate(self.field):
                 for x, flag in enumerate(raw):
-                    if flag:
+                    if flag:  # Если на этой координате есть квадрат тетромино.
+                        # Рассчитываю новые координаты для квадрата тетрамино,
+                        # учитывая толщину линии и смещение по оси 0x.
                         figure_rect.x, figure_rect.y = CENTER + x * TILE + 2, (y + 1) * TILE + 2
-                        pg.draw.rect(screen, self.color, figure_rect)
-            # Рисую следущую фигуру. TODO уравнять для всех мониторов, сделать в сетку, в окошке.
+                        pg.draw.rect(screen, self.color, figure_rect)  # Отрисовываю квадрат на новых координатах.
+
+            # Рисую следущую фигуру. # TODO Сделать нормально.
             for i in range(4):
                 # Рассчитываю новые координаты для квадрата тетрамино, учитывая толщину линии и смещение по оси 0x.
                 figure_rect.x = CENTER + self.next_figure[i].x * TILE + 2 + 300
                 figure_rect.y = (self.next_figure[i].y + 1) * TILE + 2 + 300
                 # Рисую квадрат тетрамино на новых координатах.
                 pg.draw.rect(screen, self.color, figure_rect)
+
             # Удаляю заполненные линии, если таковые есть.
-            field = self.field
+            field = self.field  # Копирую значение текущей заполненности стакана.
+            count = -1  # Счетчик заполненных линий. -1 для удобства индексирования.
             for y in range(HT):
-                if all(self.field[y]):
+                if all(self.field[y]):  # Если линия заполнена.
+                    # Удаляю эту линию, добавляю пустую линию в начало cтакана.
                     field = [[False for _ in range(WT)]] + self.field[:y] + self.field[y + 1:]
-            self.field = field
-            # Конец игры.
+                    count += 1
+            if count != -1:
+                self.record += self.lines_points[count]  # Увеличиваю рекорд на очки за количество заполненных линий.
+            self.field = field  # Обновляю массив заполненности стакана.
+
+            # Конец игры. # TODO Сделать нормальный конец игры, добавить возможность паузы, рекордов, шрифты.
             if any(field[0]):  # Если в первой линии есть любой квадрат.
                 square = deepcopy(figure_rect)
                 for j in range(HT):
@@ -412,10 +465,10 @@ class Round:
                         square.y = (j + 1) * TILE + 2
                         pg.draw.rect(screen, (randrange(250), randrange(250), randrange(250)), square)
                     pg.display.flip()
-                pg.time.delay(1000)  # TODO Сделать нормальный конец игры, добавить возможность паузы, рекордов, шрифты.
+                pg.time.delay(1000)
 
             pg.display.flip()  # Обновляю монитор.
-            clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду
+            clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду.
 
 
 # Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
