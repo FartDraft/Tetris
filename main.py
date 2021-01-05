@@ -31,7 +31,10 @@ WT, HT = 10, 20  # Ширина и высота прямоугольного с�
 TILE = H // (HT + 2)  # Размер плитки стакана.
 CENTER = (W - (WT * TILE)) // 2  # Смещение по оси 0x от краёв экрана до краёв стакана.
 # Координаты сетки стакана.
-grid = [pg.Rect(CENTER + TILE * x, TILE * (y + 1), TILE, TILE) for x in range(WT) for y in range(HT)]
+grid_glass = [pg.Rect(CENTER + TILE * x, TILE * (y + 1), TILE, TILE) for x in range(WT) for y in range(HT)]
+# Координаты сетки для отображения следующей фигуры.
+grid_next_figure = [pg.Rect(CENTER + TILE * (WT + 5 + x), TILE * (5 + y), TILE, TILE)
+                    for x in range(4) for y in range(4)]
 # Координаты каждого квадрата тетрамино, где первая координата каждого тетрамино - его центр вращения.
 figures_pos = [[(-1, -1), (-2, -1), (0, -1), (1, -1)],
                [(0, -1), (-1, -1), (-1, 0), (0, 0)],
@@ -52,6 +55,13 @@ rounds_colors = (
     (199, 21, 133), (148, 0, 211), (128, 0, 128), (139, 0, 139), (75, 0, 130), (72, 61, 139),  # purple
     (0, 0, 255), (0, 0, 205), (0, 0, 139), (0, 0, 128), (25, 25, 112)  # blue
 )
+
+# Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
+font_path = path.join("Resources", "font.ttf")
+# Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
+font1 = pg.font.Font(font_path, TILE)
+font2 = pg.font.Font(font_path, TILE * 2)
+font3 = pg.font.Font(font_path, TILE * 3)
 
 
 class List:
@@ -152,7 +162,7 @@ class Menu(List):
                     screen.blit(font.render(name, True, select_color), (x, y))
                 else:
                     screen.blit(font.render(name, True, unselect_color), (x, y))
-        else:  # Если нет ни одного активного пункта - русую все пункты неактивным цветом.
+        else:  # Если нет ни одного активного пункта - рисую все пункты неактивным цветом.
             for name, x, y, font, unselect_color, _, item_num, _ in self.items:
                 screen.blit(font.render(name, True, unselect_color), (x, y))
         self.render_sentences()
@@ -168,7 +178,7 @@ class Menu(List):
             mouse_x, mouse_y = pg.mouse.get_pos()  # Координаты текущего положения курсора мыши.
             items_not_active = True  # Все пункты в начале каждой итерации цикла не активны.
             for item, font_size in zip(self.items, self.fonts_sizes):
-                name, x, y, item_num = item[0], item[1], item[2], item[6]
+                x, y, item_num = item[1], item[2], item[6]
                 size_x, size_y = font_size
                 # Если мышь наведена на пункт.
                 if x < mouse_x < x + size_x and y < mouse_y < y + size_y:
@@ -178,7 +188,7 @@ class Menu(List):
                     if pg.mouse.get_pressed(3)[0]:
                         action = self.items[active_item_num][7]
                         if action == 'return':
-                            return name  # Возращаемся на предыдущую сцену, передавая имя выбранного пункта.
+                            return item[0]  # Возращаемся на предыдущую сцену, передавая имя выбранного пункта.
                         else:
                             action()
 
@@ -257,6 +267,16 @@ class Round:
         # Переменные для контролирования движения тетрамино по осям 0y и 0x.
         self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 40 + 20 * self.num, 2000
         self.anim_count_x, self.anim_speed_x, self.anim_limit_x = 0, 360 + 7 * self.num, 2000
+
+        self.item = ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0))
+        self.sentences = [
+            (f"Раунд {self.num}", CENTER + TILE * (WT + 3), TILE, font2, self.color),
+            ("Следующая фигура:", CENTER + TILE * (WT + 3), TILE * 4, font1, self.color),
+            ("Счёт:", TILE, TILE * 4, font2, self.color),
+            [str(self.record), TILE, TILE * 6, font1, (0, 0, 0)],
+        ]
+        # Размер, необходимый для отображения '->'. self.font_size[0] - x, self.font_size[1] - y.
+        self.font_size = tuple(self.item[3].size(self.item[0]))
 
     @staticmethod
     def randomizer():
@@ -447,7 +467,7 @@ class Round:
 
             screen.blit(BACKGROUND, (0, 0))  # Отрисовываю BACKGROUND на мониторе.
 
-            [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid]  # Отрисовываю сетку стакана с толщиной 2.
+            [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid_glass]  # Отрисовываю сетку стакана с толщиной 2.
 
             # Отрисовываю падающее тетрамино.
             for i in range(4):
@@ -466,12 +486,14 @@ class Round:
                         figure_rect.x, figure_rect.y = CENTER + x * TILE + 2, (y + 1) * TILE + 2
                         pg.draw.rect(screen, self.color, figure_rect)  # Отрисовываю квадрат на новых координатах.
 
-            # Рисую следущую фигуру. # TODO Сделать нормально.
+            # Отрисовываю сетку следующей фигуры с толщиной 2.
+            [pg.draw.rect(screen, (0, 0, 0), rect, 2) for rect in grid_next_figure]
+            # Отрисовываю следущую фигуру.
             for i in range(4):
-                # Рассчитываю новые координаты для квадрата тетрамино, учитывая толщину линии и смещение по оси 0x.
-                figure_rect.x = CENTER + self.next_figure[i].x * TILE + 2 + 300
-                figure_rect.y = (self.next_figure[i].y + 1) * TILE + 2 + 300
-                # Рисую квадрат тетрамино на новых координатах.
+                # Рассчитываю новые координаты для квадрата следующего тетрамино.
+                figure_rect.x = CENTER + (self.next_figure[i].x + WT + 2) * TILE + 2
+                figure_rect.y = (self.next_figure[i].y + 6) * TILE + 2
+                # Рисую квадрат следущего тетрамино на новых координатах.
                 pg.draw.rect(screen, self.color, figure_rect)
 
             # Удаляю заполненные линии, если таковые есть.
@@ -485,26 +507,51 @@ class Round:
             if count != -1:
                 self.record += self.lines_points[count]  # Увеличиваю рекорд на очки за количество заполненных линий.
             self.field = field  # Обновляю массив заполненности стакана.
+            self.sentences[3][0] = str(self.record)  # Обновляю изображение рекорда.
 
-            # Конец игры. # TODO Сделать нормальный конец игры, добавить возможность паузы, рекордов, шрифты.
+            # Отслеживание пункта '<-'.
+            active = False
+            mouse_x, mouse_y = pg.mouse.get_pos()  # Координаты текущего положения курсора мыши.
+            x, y = self.item[1], self.item[2]
+            # Если мышь наведена на '<-'.
+            if x < mouse_x < x + self.font_size[0] and y < mouse_y < y + self.font_size[1]:
+                active = True
+                # Если нажали левой кнопкой мыши.
+                if pg.mouse.get_pressed(3)[0]:
+                    self.__init__()
+                    return
+
+            # Отрисовка пункта '<-'.
+            name, x, y, font = self.item[0], self.item[1], self.item[2], self.item[3]
+            if active:
+                screen.blit(font.render(name, True, self.item[5]), (x, y))
+            else:
+                screen.blit(font.render(name, True, self.item[4]), (x, y))
+            # Отрисовка предложений.
+            for name, x, y, font, color in self.sentences:
+                screen.blit(font.render(name, True, color), (x, y))
+
+            # Конец игры.
             if any(field[0]):  # Если в первой линии есть любой квадрат.
                 square = deepcopy(figure_rect)
+                # Рисую красивую мозайку.
                 for j in range(HT):
                     for i in range(WT):
                         square.x = CENTER + i * TILE + 2
                         square.y = (j + 1) * TILE + 2
                         pg.draw.rect(screen, (randrange(250), randrange(250), randrange(250)), square)
-                    pg.display.flip()
-                pg.time.delay(1000)
+                pg.display.flip()
+                pg.time.wait(1000)
+                # Обнуляю все значения, возвращаюсь на предыдущую сцену.
+                self.__init__()
+                return
 
             pg.display.flip()  # Обновляю монитор.
             clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду.
 
 
-# Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
-font1 = pg.font.Font(path.join("Resources", "font.ttf"), 30)
-font2 = pg.font.Font(path.join("Resources", "font.ttf"), 50)
-font3 = pg.font.Font(path.join("Resources", "font.ttf"), 100)
+# Создаю новый раунд.
+new_round = Round()
 
 # Создаю сцену помощи. TODO Сделать нормально.
 assistance_sentences = (
@@ -525,19 +572,16 @@ records_items = (
 )
 records = Menu(records_sentences, records_items)
 
-# Создаю новый раунд. TODO сделать цикл новых раундов, где каждый новый раунд начинается с какого-то количества очков
-new_round = Round()
-
 # Создаю сцену игрового меню.
 main_menu_sentences = (
-    ("Тетрис", W // 2 - 155, 0, font3, (255, 0, 0)),
-    ("Автор: Афанасин Егор", 100, H - 100, font1, (54, 54, 54)),
+    ("Тетрис", W // 2 - TILE * 4, 0, font3, (255, 0, 0)),
+    ("Автор: Афанасин Егор", TILE * 3, H - TILE * 3, font1, (54, 54, 54)),
 )
 main_menu_items = (
-    ("Играть", W // 2 - 80, 100, font2, (0, 0, 0), (255, 0, 0), 0, new_round.main),
-    ("Помощь", W // 2 - 80, 180, font2, (0, 0, 0), (255, 0, 0), 1, assistance.main),
-    ("Рекорды", W // 2 - 80, 260, font2, (0, 0, 0), (255, 0, 0), 2, records.main),
-    ("Выйти", W // 2 - 80, 340, font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
+    ("Играть", W // 2 - 80, TILE * 3, font2, (0, 0, 0), (255, 0, 0), 0, new_round.main),
+    ("Помощь", W // 2 - 80, TILE * 5 + TILE // 2, font2, (0, 0, 0), (255, 0, 0), 1, assistance.main),
+    ("Рекорды", W // 2 - 80, TILE * 8, font2, (0, 0, 0), (255, 0, 0), 2, records.main),
+    ("Выйти", W // 2 - 80, TILE * 10 + TILE // 2, font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 )
 main_menu = Menu(main_menu_sentences, main_menu_items)
 
