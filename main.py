@@ -259,6 +259,7 @@ class Round:
         self.field = [[False for _ in range(WT)] for _ in range(HT)]
         self.num = 1  # Номер раунда, при создании раунда равен 1.
         self.record = 0  # Рекорд при создании раунда равен 0.
+        self.lines = 0  # Количество собранных линий в раунде.
 
         # Переменные, зависящие от номера раунда.
         self.color = rounds_colors[self.num - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
@@ -267,10 +268,10 @@ class Round:
         # Переменные для контролирования движения тетрамино по осям 0y и 0x.
         self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 40 + 20 * self.num, 2000
         self.anim_count_x, self.anim_speed_x, self.anim_limit_x = 0, 360 + 7 * self.num, 2000
-
+        # Игровое меню.
         self.item = ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0))
         self.sentences = [
-            (f"Раунд {self.num}", CENTER + TILE * (WT + 3), TILE, font2, self.color),
+            [f"Раунд {self.num}", CENTER + TILE * (WT + 3), TILE, font2, self.color],
             ("Следующая фигура:", CENTER + TILE * (WT + 3), TILE * 4, font1, self.color),
             ("Счёт:", TILE, TILE * 4, font2, self.color),
             [str(self.record), TILE, TILE * 6, font1, (0, 0, 0)],
@@ -498,16 +499,30 @@ class Round:
 
             # Удаляю заполненные линии, если таковые есть.
             field = self.field  # Копирую значение текущей заполненности стакана.
-            count = -1  # Счетчик заполненных линий. -1 для удобства индексирования.
+            count = 0  # Счетчик заполненных линий.
             for y in range(HT):
                 if all(self.field[y]):  # Если линия заполнена.
                     # Удаляю эту линию, добавляю пустую линию в начало cтакана.
                     field = [[False for _ in range(WT)]] + self.field[:y] + self.field[y + 1:]
                     count += 1
-            if count != -1:
-                self.record += self.lines_points[count]  # Увеличиваю рекорд на очки за количество заполненных линий.
+            if count:
+                # Увеличиваю рекорд на очки за количество заполненных линий.
+                self.record += self.lines_points[count - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
+            self.lines += count  # Обновляю значение заполненных линий в этом раунде.
             self.field = field  # Обновляю массив заполненности стакана.
             self.sentences[3][0] = str(self.record)  # Обновляю изображение рекорда.
+
+            # Новый раунд.
+            if self.lines > 10:
+                self.num += 1  # Переходим на следующий раунд.
+                self.lines = 0  # Обнуляем значение собранных линий.
+                self.color = rounds_colors[self.num - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
+                # Количество очков за 1, 2, 3, 4 линии обновляется.
+                self.lines_points = (100 * self.num, 300 * self.num, 700 * self.num, 1500 * self.num)
+                # Переменные для контролирования движения тетрамино по осям 0y и 0x.
+                self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 40 + 20 * self.num, 2000
+                self.anim_count_x, self.anim_speed_x, self.anim_limit_x = 0, 360 + 7 * self.num, 2000
+                self.sentences[0][0] = f"Раунд {self.num}"  # Обновляем изображение номера раунда.
 
             # Отслеживание пункта '<-'.
             active = False
