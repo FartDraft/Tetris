@@ -4,7 +4,7 @@ __email__ = "fartdraft@gmail.com"
 import pygame as pg
 from os import path
 import sys
-from random import choice, randrange
+from random import randrange, choice, shuffle
 from copy import deepcopy
 
 
@@ -217,6 +217,9 @@ class Round:
             в разработке
 
         Статические методы:
+            randomizer():
+                Модифицированный алгоритм генератора случайностей 7-bag. Генерирует индексы для массива figures.
+
             abroad_x(tuple(pygame.Rect): кортеж квадратов тетрамино. Длина - 4.) -> bool:
                 Проверяет, вышло ли тетрамино за левую или правую границу стакана.
                 Возвращает True - если тетрамино вышло, иначе - False.
@@ -254,6 +257,31 @@ class Round:
         # Переменные для контролирования движения тетрамино по осям 0y и 0x.
         self.anim_count_y, self.anim_speed_y, self.anim_limit_y = 0, 40 + 20 * self.num, 2000
         self.anim_count_x, self.anim_speed_x, self.anim_limit_x = 0, 360 + 7 * self.num, 2000
+
+    @staticmethod
+    def randomizer():
+        """Модифицированный алгоритм генератора случайностей 7-bag.
+
+        Список семи различных и ещё 2 случайные тетрамино помещаются в «мешок», после чего
+        фигуры одна за другой случайным образом извлекаются из него, пока «мешок» не опустеет.
+        Когда он опустеет, фигуры возвращаются в него и процесс повторяется.
+
+        Yield:
+            int: случайный индекс для массива figures.
+
+        Примеры:
+            generator = self.randomizer()
+            tetromino = deepcopy(figures[next(generator)])
+
+        """
+        bag = [0, 1, 2, 3, 4, 5, 6] + [randrange(0, 7), randrange(0, 7)]
+        shuffle(bag)
+        while True:
+            if bag:
+                yield bag.pop()
+            else:
+                bag = [0, 1, 2, 3, 4, 5, 6] + [randrange(0, 7), randrange(0, 7)]
+                shuffle(bag)
 
     @staticmethod
     def abroad_x(figure) -> bool:
@@ -337,6 +365,7 @@ class Round:
 
     def main(self):
         stack = [None]  # Очередь действий, в начале тетрамино не нужно никуда двигать.
+        generator = self.randomizer()  # Создаю генератор индексов для массива figures.
         while True:
             rotate = False  # В начале тетрамино не нужно поворачивать.
             for event in pg.event.get():
@@ -412,7 +441,8 @@ class Round:
                     # Обновляю значение падающего тетрамино.
                     # Не deepcopy потому что в следующей строке значение self.next_figure меняется на случайное.
                     self.figure = self.next_figure
-                    self.next_figure = deepcopy(choice(figures))
+                    # Беру следущий индекс из генератора индексов для массива figures.
+                    self.next_figure = deepcopy(figures[next(generator)])
                     self.anim_limit_y = 2000  # Обновляю значение, на случай, если была нажата стрелка вниз.
 
             screen.blit(BACKGROUND, (0, 0))  # Отрисовываю BACKGROUND на мониторе.
