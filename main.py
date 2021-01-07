@@ -59,9 +59,18 @@ rounds_colors = (
 # Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
 font_path = path.join("Resources", "font.ttf")
 # Создаю шрифты, чтобы поменять размер шрифта - необходимо создать новый объект шрифта нужного размера.
+font05 = pg.font.Font(font_path, TILE // 2)
 font1 = pg.font.Font(font_path, TILE)
 font2 = pg.font.Font(font_path, TILE * 2)
 font3 = pg.font.Font(font_path, TILE * 3)
+
+# Фоновая музыка.
+pg.mixer.music.load(path.join("Resources", "background_music.mp3"))  # Загружаю подборку из файла.
+pg.mixer.music.play(-1)  # Бесконечно воспроизводится.
+pg.mixer.music.rewind()  # Начинаю подборку сначала.
+# Позиции начала каждого трека в подборке.
+positions = (0, 259, 537, 711, 904, 1049, 1334, 1518, 1663, 1867, 1991, 2236, 2403, 2595, 2781, 3109, 3328, 3514)
+pg.mixer.music.set_pos(choice(positions))  # Выбираю случайный трек.
 
 
 class List:
@@ -208,23 +217,8 @@ class Menu(List):
             clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду.
 
 
-class GameOverMenu(Menu):
-    """Поздравление с новым рекордом, кнопка играть еще, кнопка выхода в главное меню.
-    Третичный цикл, нужен флаг menu, для правильного выхода в меню"""
-    pass
-
-
-class PauseMenu(Menu):
-    """При нажимании на хоткей паузы, будет отрисовываться иконка паузы, и игра замирать.
-    Третичный цикл, нужен флаг menu, для правильного выхода в меню"""
-    pass
-
-
 class Round:
-    """Класс Round.
-
-        Атрибуты:
-            в разработке
+    """Класс Round служит для воспроизведения игры Tetris.
 
         Статические методы:
             randomizer():
@@ -251,6 +245,8 @@ class Round:
                 Проверяет тетрамино на столкновение с квадратами других тетрамино в стакане.
                 Возвращает True - если тетрамино столкнулось, иначе - False.
 
+            main(self):
+                Входит в цикл, который воспроизводит Тетрис со всеми его составляющими.
     """
     def __init__(self):
         # Deepcopy - глубокая копия, т.к. figures - двумерный массив.
@@ -258,7 +254,7 @@ class Round:
         # Двумерный массив, отображающий заполненность стакана.
         self.field = [[False for _ in range(WT)] for _ in range(HT)]
         self.num = 1  # Номер раунда, при создании раунда равен 1.
-        self.record = 0  # Рекорд при создании раунда равен 0.
+        self.score = 0  # Рекорд при создании раунда равен 0.
         self.lines = 0  # Количество собранных линий в раунде.
 
         # Переменные, зависящие от номера раунда.
@@ -271,10 +267,10 @@ class Round:
         # Игровое меню.
         self.item = ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0))
         self.sentences = [
-            [f"Раунд {self.num}", CENTER + TILE * (WT + 3), TILE, font2, self.color],
-            ("Следующая фигура:", CENTER + TILE * (WT + 3), TILE * 4, font1, self.color),
-            ("Счёт:", TILE, TILE * 4, font2, self.color),
-            [str(self.record), TILE, TILE * 6, font1, (0, 0, 0)],
+            [f"Раунд {self.num}", CENTER + TILE * (WT + 3), TILE, font2, (0, 0, 0)],
+            ("Следующая фигура:", CENTER + TILE * (WT + 3), TILE * 4, font1, (0, 0, 0)),
+            ("Счёт:", TILE, TILE * 4, font2, (0, 0, 0)),
+            [str(self.score), TILE, TILE * 6, font1, (0, 0, 0)],
         ]
         # Размер, необходимый для отображения '->'. self.font_size[0] - x, self.font_size[1] - y.
         self.font_size = tuple(self.item[3].size(self.item[0]))
@@ -389,6 +385,7 @@ class Round:
         generator = self.randomizer()  # Создаю генератор индексов для массива figures.
         while True:
             rotate = False  # В начале тетрамино не нужно поворачивать.
+            wait = False  # В начале пауза не нажата.
             for event in pg.event.get():
                 if event.type == pg.QUIT:  # Если нажали ALT+F4.
                     pg.quit()
@@ -405,6 +402,9 @@ class Round:
                     # Если это стрелка вверх и тетрамино не является квадратом.
                     elif event.key == pg.K_UP and not self.is_square(self.figure):
                         rotate = True  # Тетрамино необходимо повернуть.
+                    elif event.key == pg.K_SPACE:  # Если это пробел.
+                        pause.main()  # Ставим на паузу.
+                        wait = True  # Пауза была нажата.
                 elif event.type == pg.KEYUP:  # Если клавишу отпустили.
                     if event.key == pg.K_LEFT:  # Если это стрелка влево.
                         stack.pop(stack.index('left'))  # Удалям действие двигаться влево из очереди действий.
@@ -503,17 +503,17 @@ class Round:
             for y in range(HT):
                 if all(self.field[y]):  # Если линия заполнена.
                     # Удаляю эту линию, добавляю пустую линию в начало cтакана.
-                    field = [[False for _ in range(WT)]] + self.field[:y] + self.field[y + 1:]
+                    field = [[False for _ in range(WT)]] + field[:y] + field[y + 1:]
                     count += 1
             if count:
                 # Увеличиваю рекорд на очки за количество заполненных линий.
-                self.record += self.lines_points[count - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
+                self.score += self.lines_points[count - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
             self.lines += count  # Обновляю значение заполненных линий в этом раунде.
             self.field = field  # Обновляю массив заполненности стакана.
-            self.sentences[3][0] = str(self.record)  # Обновляю изображение рекорда.
+            self.sentences[3][0] = str(self.score)  # Обновляю изображение рекорда.
 
             # Новый раунд.
-            if self.lines > 10:
+            if self.lines > 5:
                 self.num += 1  # Переходим на следующий раунд.
                 self.lines = 0  # Обнуляем значение собранных линий.
                 self.color = rounds_colors[self.num - 1]  # -1, т.к. мне нужен индекс, а не порядковый номер.
@@ -533,6 +533,7 @@ class Round:
                 active = True
                 # Если нажали левой кнопкой мыши.
                 if pg.mouse.get_pressed(3)[0]:
+                    set_records(self.score)
                     self.__init__()
                     return
 
@@ -548,40 +549,98 @@ class Round:
 
             # Конец игры.
             if any(field[0]):  # Если в первой линии есть любой квадрат.
-                square = deepcopy(figure_rect)
                 # Рисую красивую мозайку.
+                square = deepcopy(figure_rect)
                 for j in range(HT):
                     for i in range(WT):
                         square.x = CENTER + i * TILE + 2
                         square.y = (j + 1) * TILE + 2
                         pg.draw.rect(screen, (randrange(250), randrange(250), randrange(250)), square)
+                set_records(self.score)  # Устанавливаю рекорды, учитывая счёт self.score.
                 pg.display.flip()
-                pg.time.wait(1000)
+                pg.time.wait(1500)  # Останавливаю программу на  1.5 секунды.
                 # Обнуляю все значения, возвращаюсь на предыдущую сцену.
                 self.__init__()
                 return
 
             pg.display.flip()  # Обновляю монитор.
+            if wait:  # Если была нажата пауза.
+                pg.time.wait(1000)  # Ждём 1 секунду.
             clock.tick(FPS)  # Ограничиваю скорость выполнения программы до 60 кадров в секунду.
 
+
+# Cоздаю меню паузы.
+pause_items = (
+    ("Продолжить", W // 2 - TILE * 8, TILE * 7, font3, (0, 0, 0), (255, 0, 0), 0, 'return'),
+)
+pause_sentences = (
+    ("Пауза", W // 2 - TILE * 4, TILE, font3, (0, 0, 0)),
+)
+pause = Menu(pause_sentences, pause_items)
 
 # Создаю новый раунд.
 new_round = Round()
 
-# Создаю сцену помощи. TODO Сделать нормально.
-assistance_sentences = (
-    ("В разработке", W // 2, H // 2, font1, (0, 0, 0)),
+# Создаю сцену справки.
+reference_sentences = (
+    ("Управление:", 5 * TILE, TILE, font2, (0, 0, 0)),
+    ("Стрелка вправо-двигаться вправо;", 2 * TILE, 3 * TILE, font1, (0, 0, 0)),
+    ("Стрелка влево-двигаться влево;", 2 * TILE, 4 * TILE, font1, (0, 0, 0)),
+    ("Стрелка вниз-устремить тетромина вниз;", 2 * TILE, 5 * TILE, font1, (0, 0, 0)),
+    ("Стрелка вверх-повернуть тетрамино;", 2 * TILE, 6 * TILE, font1, (0, 0, 0)),
+    ("Пробел-пауза.", 2 * TILE, 7 * TILE, font1, (0, 0, 0)),
+    ("Музыка: Gravy Beats-Genkai, Gravy Beats-Katsu, Iruka-Taikai,", TILE, 9 * TILE, font05, (0, 0, 0)),
+    ("        Gravy Beats-Kaze, Iruka-Gojira, Gravy Beats-Samurai,", TILE, 10 * TILE, font05, (0, 0, 0)),
+    ("        Iruka-Ukiyo-e , Gravy Beats Madara II, GravyBeats-Bushido,", TILE, 11 * TILE, font05, (0, 0, 0)),
+    ("        Iruka-Doomed, Gravy-Kasai, Iruka-Shinigami,", TILE, 12 * TILE, font05, (0, 0, 0)),
+    ("        Iruka-Uchigatana, Gravy Beats-Warrior Spirit, Gravy Beats-Shinobi,", TILE, 13 * TILE, font05, (0, 0, 0)),
+    ("        Gravy Beats-Shinigami, Gravy Beats-Ronin, Gravy Beats-Amaterasu,", TILE, 14 * TILE, font05, (0, 0, 0)),
 )
-assistance_items = (
+reference_items = (
     ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0), 0, 'return'),
 )
-assistance = Menu(assistance_sentences, assistance_items)
+reference = Menu(reference_sentences, reference_items)
 
 # Создаю сцену рекордов.
-# TODO Создать файл, в котором будут храниться последние 5 рекордов. Помещать их в records_sentences.
-records_sentences = (
-    ("В разработке", W // 2, H // 2, font1, (0, 0, 0)),
-)
+def get_records() -> list:
+    """Возвращает массив линий из файла records.txt. Если такого файла нету, создаёт его.
+
+    Возвращаемое значение:
+        list(str): рекорды пользователя.
+    """
+    try:
+        recs = open(path.join("records.txt"))
+        ret = recs.readlines()
+    except FileNotFoundError:
+        recs = open(path.join("records.txt"), 'w')
+        ret = []
+    recs.close()
+    return ret
+
+
+def set_records(score: int) -> list:
+    """Заносит рекорды в файл records.txt с учётом счёта score.
+
+    Атрибуты:
+        score: int: текущий счёт.
+
+    Возвращаемое значение:
+        list(str): рекорды пользователя с их порядковым номером с учётом переданного счёта.
+    """
+    # Получаю цифровое значение прошлых рекордов.
+    recs = list(map(int, [record[3:].strip() for record in get_records()]))
+    recs = sorted([score] + recs, reverse=True)
+    if len(recs) > 5:  # В файле хранится только 5 наибольших рекордов.
+        recs = recs[:-1]
+    ret = [f"{i + 1}. {record}\n" for i, record in enumerate(recs)]  # Трансформирую для красивого написания в файл.
+    with open(path.join("records.txt"), 'w') as f:  # Открываю файл для записи.
+        for line in ret:
+            f.write(line)  # Записываю каждую линию в файл.
+    return ret  # Возвращаю для использования сценой рекордов.
+
+
+records_sentences = tuple((record.strip(), TILE * 6, TILE * (3 + 2 * i), font1, (0, 0, 0))
+                          for i, record in enumerate(get_records()))
 records_items = (
     ("<-", 0, 0, font3, (0, 0, 0), (255, 0, 0), 0, 'return'),
 )
@@ -594,7 +653,7 @@ main_menu_sentences = (
 )
 main_menu_items = (
     ("Играть", W // 2 - 80, TILE * 3, font2, (0, 0, 0), (255, 0, 0), 0, new_round.main),
-    ("Помощь", W // 2 - 80, TILE * 5 + TILE // 2, font2, (0, 0, 0), (255, 0, 0), 1, assistance.main),
+    ("Справка", W // 2 - 80, TILE * 5 + TILE // 2, font2, (0, 0, 0), (255, 0, 0), 1, reference.main),
     ("Рекорды", W // 2 - 80, TILE * 8, font2, (0, 0, 0), (255, 0, 0), 2, records.main),
     ("Выйти", W // 2 - 80, TILE * 10 + TILE // 2, font2, (0, 0, 0), (255, 0, 0), 3, sys.exit),
 )
